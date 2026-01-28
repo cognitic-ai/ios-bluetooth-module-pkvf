@@ -11,89 +11,91 @@ public class BluetoothModule: Module, CBCentralManagerDelegate {
     Events("onDeviceFound", "onBluetoothStateChanged")
 
     OnCreate {
-      centralManager = CBCentralManager(delegate: self, queue: nil)
+      self.centralManager = CBCentralManager(delegate: self, queue: nil)
     }
 
-    Function("isBluetoothAvailable") { () -> Bool in
-      guard let manager = centralManager else { return false }
+    OnDestroy {
+      self.stopScanning()
+      self.centralManager = nil
+    }
+
+    Function("isBluetoothAvailable") {
+      guard let manager = self.centralManager else { return nil }
       return manager.state == .poweredOn
     }
 
-    Function("getBluetoothState") { () -> String in
-      guard let manager = centralManager else { return "unknown" }
-      switch manager.state {
-      case .poweredOn:
-        return "poweredOn"
-      case .poweredOff:
-        return "poweredOff"
-      case .unsupported:
-        return "unsupported"
-      case .unauthorized:
-        return "unauthorized"
-      case .resetting:
-        return "resetting"
-      default:
-        return "unknown"
-      }
+    Function("getBluetoothState") {
+      return self.getStateString()
     }
 
-    AsyncFunction("startScanning") { (promise: Promise) in
-      guard let manager = centralManager else {
-        promise.reject("ERR_BLUETOOTH", "Bluetooth manager not initialized")
-        return
+    AsyncFunction("startScanning") {
+      guard let manager = self.centralManager else {
+        throw BluetoothException("Bluetooth manager not initialized")
       }
 
-      if manager.state != .poweredOn {
-        promise.reject("ERR_BLUETOOTH", "Bluetooth is not powered on")
-        return
+      guard manager.state == .poweredOn else {
+        throw BluetoothException("Bluetooth is not powered on. Current state: \(self.getStateString())")
       }
 
-      if isScanning {
-        promise.reject("ERR_BLUETOOTH", "Already scanning")
-        return
+      guard !self.isScanning else {
+        throw BluetoothException("Already scanning")
       }
 
-      isScanning = true
+      self.isScanning = true
       manager.scanForPeripherals(withServices: nil, options: nil)
-      promise.resolve(true)
     }
 
     Function("stopScanning") {
-      guard let manager = centralManager else { return }
-      if isScanning {
-        manager.stopScan()
-        isScanning = false
-      }
+      self.stopScanning()
+    }
+  }
+
+  private func stopScanning() {
+    guard let manager = self.centralManager, self.isScanning else { return }
+    manager.stopScan()
+    self.isScanning = false
+  }
+
+  private func getStateString() -> String {
+    guard let manager = self.centralManager else { return "unknown" }
+    switch manager.state {
+    case .poweredOn:
+      return "poweredOn"
+    case .poweredOff:
+      return "poweredOff"
+    case .unsupported:
+      return "unsupported"
+    case .unauthorized:
+      return "unauthorized"
+    case .resetting:
+      return "resetting"
+    default:
+      return "unknown"
     }
   }
 
   public func centralManagerDidUpdateState(_ central: CBCentralManager) {
-    var state: String
-    switch central.state {
-    case .poweredOn:
-      state = "poweredOn"
-    case .poweredOff:
-      state = "poweredOff"
-    case .unsupported:
-      state = "unsupported"
-    case .unauthorized:
-      state = "unauthorized"
-    case .resetting:
-      state = "resetting"
-    default:
-      state = "unknown"
-    }
-
-    sendEvent("onBluetoothStateChanged", [
-      "state": state
+    self.sendEvent("onBluetoothStateChanged", [
+      "state": self.getStateString()
     ])
   }
 
-  public func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-    sendEvent("onDeviceFound", [
+  public func centralManager(
+    _ central: CBCentralManager,
+    didDiscover peripheral: CBPeripheral,
+    advertisementData: [String: Any],
+    rssi RSSI: NSNumber
+  ) {
+    self.sendEvent("onDeviceFound", [
       "id": peripheral.identifier.uuidString,
       "name": peripheral.name ?? "Unknown",
       "rssi": RSSI.intValue
     ])
+  }
+}
+
+internal final class BluetoothException: Exception {
+  override var reason: String {
+    return param as? String ?? "Bluetooth error"
   }
 }

@@ -4,6 +4,12 @@
     "scheme": "acme",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "ios": {
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "This app needs access to Bluetooth to scan for and connect to nearby devices.",
+        "NSBluetoothPeripheralUsageDescription": "This app needs access to Bluetooth to communicate with nearby devices."
+      }
+    },
     "android": {
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

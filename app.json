@@ -16,6 +16,9 @@
     },
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "plugins": [
+      "@bacons/apple-colors"
+    ]
   }
 }

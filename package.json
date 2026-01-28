@@ -6,6 +6,7 @@
     "start": "expo start"
   },
   "dependencies": {
+    "@bacons/apple-colors": "^0.0.8",
     "@expo/cli": "54.1.0-canary-20260119-17896bf",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.4.0",
